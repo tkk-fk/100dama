@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>100玉そろばん</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Mochiy+Pop+One&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --shadow-1: 0 2px 6px rgba(0,0,0,.18);
+      --shadow-2: 0 6px 16px rgba(0,0,0,.22);
+      --shadow-inset: inset 1px 1px 3px rgba(0,0,0,.15);
+
+      --bg-app: #fff8ea;
+      --frame:  #f6e7c7;
+      --frame-border: #f0cf8e;
+
+      --accent-num: #0ea5a4;
+
+      /* JSで上書きされるレイアウト変数 */
+      --bead-size: 32px;
+      --bead-gap: 6px;
+      --bead-top: 6px;
+      --bead-move-distance: 200px;
+      --rod-height: 48px;
+    }
+
+    html, body { height: 100%; }
+    body{
+      min-height: 100svh;
+      font-family:'Mochiy Pop One', system-ui, -apple-system, sans-serif;
+      touch-action: manipulation;
+      background: var(--bg-app);
+      color:#333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #soroban{
+      background: var(--frame);
+      border: 4px solid var(--frame-border);
+      box-shadow: var(--shadow-1);
+    }
+
+    .rod{
+      position: relative;
+      width: 100%;
+      height: var(--rod-height);
+      border-radius: 9999px;
+      background: #e9e7e4;
+      box-shadow: var(--shadow-inset);
+      overflow: hidden;
+    }
+
+    /* 右側の移動エリア */
+    .rod::after{
+      content:"";
+      position:absolute;
+      top: 10%;
+      bottom: 10%;
+      left: calc(50% + 0px);
+      width: calc(50% - 0px);
+      background: linear-gradient(to right, rgba(0,0,0,.04), rgba(0,0,0,.02));
+      border-left: 2px solid rgba(0,0,0,.08);
+      pointer-events: none;
+    }
+
+    .bead{
+      width: var(--bead-size);
+      height: var(--bead-size);
+      position: absolute;
+      top: var(--bead-top);
+      border-radius: 50%;
+      cursor: grab;
+      transition: transform .22s cubic-bezier(.4,0,.2,1), box-shadow .18s;
+      box-shadow: var(--shadow-1);
+      will-change: transform;
+    }
+    .bead.is-dragging{ cursor: grabbing; z-index: 10; box-shadow: var(--shadow-2); transition: none; }
+    .bead.is-right{ transform: translateX(var(--bead-move-distance)); }
+
+    @media(hover:hover){
+      .bead:hover{ transform: scale(1.06); }
+      .bead.is-right:hover{ transform: translateX(var(--bead-move-distance)) scale(1.06); }
+    }
+
+    /* 色（UD：5個ずつで色が変わる） */
+    .bead-red  { background: #f0435e; }
+    .bead-amber{ background: #f2b833; }
+
+    /* 数字表示 */
+    .count-text{
+      font-weight: 700;
+      color: var(--accent-num);
+      transition: transform .18s ease, opacity .18s ease;
+      font-size: clamp(2rem, 8vw, 3.5rem);
+    }
+    @media (min-width:640px){ .count-text{ font-size: clamp(2.1rem, 6.5vw, 4rem);} }
+    @media (min-width:768px){ .count-text{ font-size: clamp(2.2rem, 5.5vw, 4.5rem);} }
+
+    /* 横向きは全体を少しタイトに */
+    @media (orientation: landscape) {
+      .landscape-tight { padding-top: .25rem !important; padding-bottom: .25rem !important; }
+      .landscape-tight > h1 { margin-bottom: .25rem !important; }
+      .landscape-tight .toolbar { margin-bottom: .5rem !important; }
+      #reset-button{ padding: .5rem 1.25rem; font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="w-full max-w-5xl mx-auto p-3 sm:p-4 text-center landscape-tight">
+    <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-stone-700 mb-2">100だま そろばん</h1>
+    <p class="text-stone-500 toolbar">たまを　スライドさせよう！</p>
+
+    <!-- 数字表示＋トグル -->
+    <div class="bg-white rounded-2xl p-3 sm:p-4 mb-3" style="box-shadow: var(--shadow-inset);">
+      <div class="flex items-center justify-between gap-4">
+        <div id="total-count-wrap" class="flex-1">
+          <div id="total-count-display" class="count-text select-none">0</div>
+        </div>
+        <label class="inline-flex items-center gap-2 text-stone-600 text-sm sm:text-base">
+          <input id="toggle-hide-number" type="checkbox" class="h-5 w-5 accent-emerald-500">
+          数字を非表示
+        </label>
+      </div>
+    </div>
+
+    <!-- そろばん本体（10段生成） -->
+    <div id="soroban" class="p-3 sm:p-4 rounded-2xl space-y-3 sm:space-y-4">
+      <!-- JSで段と玉を生成 -->
+    </div>
+
+    <!-- リセット -->
+    <button id="reset-button"
+      class="mt-3 px-6 py-2 bg-red-500 text-white font-bold rounded-full hover:bg-red-600 active:scale-95 transition-all text-base sm:text-lg"
+      style="box-shadow: var(--shadow-1);">
+      ぜんぶもどす
+    </button>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const sorobanContainer = document.getElementById('soroban');
+      const totalCountDisplay = document.getElementById('total-count-display');
+      const totalCountWrap = document.getElementById('total-count-wrap');
+      const toggleHideNumber = document.getElementById('toggle-hide-number');
+      const resetButton = document.getElementById('reset-button');
+
+      /* ★ 100玉仕様：10段×各10玉 */
+      const ROWS = 10;
+      const BEADS_PER_ROW = 10;
+
+      let isDragging = false;
+      let draggedBeadsGroup = [];
+      let startX = 0;
+      let currentTranslateX = 0;
+
+      let rodWidthPx = 0;
+      let rodHeightPx = 0;
+      let beadSizePx = 0;
+      let beadGapPx = 0;
+      let beadTopPx = 0;
+      let moveDistancePx = 0;
+
+      function setupSoroban(){
+        sorobanContainer.innerHTML = '';
+
+        for (let i = 0; i < ROWS; i++){
+          const rod = document.createElement('div');
+          rod.className = 'rod';
+          rod.dataset.row = i;
+
+          for (let j = 0; j < BEADS_PER_ROW; j++){
+            const bead = document.createElement('div');
+
+            /* 5個ずつ色替え（視認性・まとまり） */
+            bead.className = (j < 5) ? 'bead bead-red' : 'bead bead-amber';
+            bead.dataset.row = i;
+            bead.dataset.col = j;
+
+            bead.addEventListener('mousedown', dragStart);
+            bead.addEventListener('touchstart', dragStart, { passive: false });
+
+            rod.appendChild(bead);
+          }
+          sorobanContainer.appendChild(rod);
+        }
+
+        resetBeads();
+        requestAnimationFrame(recalculateLayout);
+
+        window.addEventListener('resize', recalculateLayout, { passive: true });
+        window.matchMedia('(orientation: landscape)').addEventListener?.('change', recalculateLayout);
+      }
+
+      /* 10段でも画面に収まるよう高さを自動最適化 */
+      function recalculateLayout(){
+        const rod = sorobanContainer.querySelector('.rod');
+        if (!rod) return;
+
+        const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+        const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+        const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+
+        // 使える高さの見積（ヘッダ/余白分を少し控えめに）
+        const usableVh = isLandscape ? vh * 0.80 : vh * 0.76;
+
+        // 行数で割ってロッド高さを決める（タップ性も担保）
+        rodHeightPx = Math.min(64, Math.max(36, usableVh / ROWS));
+
+        sorobanContainer.querySelectorAll('.rod').forEach(r => {
+          r.style.height = rodHeightPx + 'px';
+        });
+
+        rodWidthPx = rod.clientWidth;
+
+        // 左半分に10玉を等間隔配置（右半分はスライドエリア）
+        const N = BEADS_PER_ROW;
+        const gapRatio = 0.25;
+        beadSizePx = rodWidthPx / (2 * (N + (N - 1) * gapRatio));
+        beadGapPx = beadSizePx * gapRatio;
+
+        beadTopPx = (rodHeightPx - beadSizePx) / 2;
+        if (beadTopPx < 2) beadTopPx = 2;
+
+        moveDistancePx = N * beadSizePx + (N - 1) * beadGapPx;
+
+        document.documentElement.style.setProperty('--bead-size', beadSizePx + 'px');
+        document.documentElement.style.setProperty('--bead-gap', beadGapPx + 'px');
+        document.documentElement.style.setProperty('--bead-top', beadTopPx + 'px');
+        document.documentElement.style.setProperty('--bead-move-distance', moveDistancePx + 'px');
+        document.documentElement.style.setProperty('--rod-height', rodHeightPx + 'px');
+
+        sorobanContainer.querySelectorAll('.rod').forEach((r)=>{
+          const beads = Array.from(r.querySelectorAll('.bead'));
+          beads.forEach((b, j)=>{
+            const leftPx = j * (beadSizePx + beadGapPx);
+            b.style.left = leftPx + 'px';
+            b.style.top  = beadTopPx + 'px';
+          });
+        });
+      }
+
+      function dragStart(e){
+        const target = e.target;
+        e.preventDefault();
+
+        isDragging = true;
+        draggedBeadsGroup = [];
+
+        const row = target.parentElement;
+        const beadsInRow = Array.from(row.querySelectorAll('.bead'));
+        const clickedIndex = parseInt(target.dataset.col, 10);
+
+        if (!target.classList.contains('is-right')){
+          beadsInRow.forEach((b, index) => {
+            if (index >= clickedIndex && !b.classList.contains('is-right')){
+              draggedBeadsGroup.push(b);
+            }
+          });
+        } else {
+          beadsInRow.forEach((b, index) => {
+            if (index <= clickedIndex && b.classList.contains('is-right')){
+              draggedBeadsGroup.push(b);
+            }
+          });
+        }
+
+        if (draggedBeadsGroup.length === 0){
+          isDragging = false;
+          return;
+        }
+
+        startX = e.pageX || (e.touches && e.touches[0].pageX);
+        currentTranslateX = target.classList.contains('is-right') ? moveDistancePx : 0;
+
+        draggedBeadsGroup.forEach(b => {
+          b.classList.add('is-dragging');
+          b.style.transition = 'none';
+        });
+
+        document.addEventListener('mousemove', dragging);
+        document.addEventListener('touchmove', dragging, { passive: false });
+        document.addEventListener('mouseup', dragEnd);
+        document.addEventListener('touchend', dragEnd);
+      }
+
+      function dragging(e){
+        if (!isDragging || draggedBeadsGroup.length === 0) return;
+        e.preventDefault();
+
+        const currentX = e.pageX || (e.touches && e.touches[0].pageX);
+        const moveX = currentX - startX;
+        let newX = currentTranslateX + moveX;
+
+        newX = Math.max(0, Math.min(newX, moveDistancePx));
+
+        draggedBeadsGroup.forEach(b => {
+          b.style.transform = `translateX(${newX}px)`;
+        });
+      }
+
+      function dragEnd(){
+        if (!isDragging || draggedBeadsGroup.length === 0) return;
+        isDragging = false;
+
+        const mainBead = draggedBeadsGroup[0];
+        const style = window.getComputedStyle(mainBead);
+        const matrix =
+          ('DOMMatrixReadOnly' in window)
+            ? new DOMMatrixReadOnly(style.transform)
+            : new WebKitCSSMatrix(style.transform);
+        const currentX = matrix.m41;
+
+        const threshold = moveDistancePx / 2;
+        const shouldBeOnRight = currentX > threshold;
+
+        draggedBeadsGroup.forEach(b => {
+          b.classList.remove('is-dragging');
+          b.style.transition = '';
+          if (shouldBeOnRight){ b.classList.add('is-right'); }
+          else{ b.classList.remove('is-right'); }
+          b.style.transform = '';
+        });
+
+        updateTotalCount();
+
+        draggedBeadsGroup = [];
+        document.removeEventListener('mousemove', dragging);
+        document.removeEventListener('touchmove', dragging);
+        document.removeEventListener('mouseup', dragEnd);
+        document.removeEventListener('touchend', dragEnd);
+      }
+
+      function updateTotalCount(){
+        const count = document.querySelectorAll('.bead.is-right').length;
+        totalCountDisplay.textContent = count;
+        totalCountDisplay.style.transform = 'scale(1.06)';
+        setTimeout(()=>{ totalCountDisplay.style.transform = 'scale(1)'; }, 140);
+      }
+
+      function resetBeads(){
+        document.querySelectorAll('.bead').forEach(bead=>{
+          bead.classList.remove('is-right');
+          bead.style.transform = '';
+        });
+        updateTotalCount();
+      }
+
+      // 数字の非表示トグル
+      toggleHideNumber.addEventListener('change', () => {
+        if (toggleHideNumber.checked){
+          totalCountWrap.style.opacity = '0';
+          totalCountWrap.style.pointerEvents = 'none';
+          setTimeout(()=>{ totalCountWrap.style.visibility = 'hidden'; }, 180);
+        }else{
+          totalCountWrap.style.visibility = 'visible';
+          requestAnimationFrame(()=>{
+            totalCountWrap.style.opacity = '1';
+            totalCountWrap.style.pointerEvents = 'auto';
+          });
+        }
+      });
+
+      // 初期化
+      setupSoroban();
+      resetButton.addEventListener('click', resetBeads);
+    });
+  </script>
+</body>
+</html>
